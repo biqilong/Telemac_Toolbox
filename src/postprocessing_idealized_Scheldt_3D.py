@@ -98,12 +98,13 @@ class Reading_TelemacData3D:
         #plt.triplot(triang, 'ko-')
         #plt.plot(r3d.X[node_thalweg_bottom],  varPlane[r3d.id_z,node_thalweg_bottom],  'ro')
         #plt.plot(r3d.X[node_thalweg_surface], varPlane[r3d.id_z,node_thalweg_surface], 'bo')
+        cbar = plt.colorbar()
+        cbar.ax.set_ylabel(self.slf.vunits[id_var])
         plt.show()
         return node_thalweg3D, X_thalweg, Z_thalweg, varPlane
 
 # test
-slf_file = 'D:\\QILONG_BI\\Research\\MCPBE_flocculation_model\\idealized_Scheldt\\r3D_idealized_Scheldt_2CPBE.slf'
-slf_file = 'D:\\QILONG_BI\\Research\\MCPBE_flocculation_model\\idealized_Scheldt\\r3D_idealized_Scheldt.slf'
+slf_file = 'C:\\Users\\saaad264\\Research\\MCPBE_flocculation_model\\idealized_Scheldt\\r3D_idealized_Scheldt_2CPBE.slf'
 r3d = Reading_TelemacData3D(slf_file)
 
 IPOIN2D = 6539
@@ -119,8 +120,11 @@ for timestep in range(200,260):
     node_thalweg3D, X_thalweg, Z_thalweg, varPlane = r3d.get_2DV_slice_thalweg(timestep,10,100)
 
 #--------------------------------------
-# settling flux
-timestep = 252
+# computing settling flux
+slf_file = 'C:\\Users\\saaad264\\Research\\MCPBE_flocculation_model\\idealized_Scheldt\\r3D_idealized_Scheldt.slf'
+r3d = Reading_TelemacData3D(slf_file)
+
+timestep = 265
 r3d.varNames
 r3d.slf.readVariables(timestep-1)
 varPlane = np.array(r3d.slf.getVarValues())
@@ -129,8 +133,8 @@ node_thalweg3D = [i for i in range(len(r3d.Y)) if r3d.Y[i]==0]
 X_thalweg = np.array([r3d.X[i] for i in range(len(r3d.X)) if r3d.Y[i]==0])
 Z_thalweg = varPlane[r3d.id_z,node_thalweg3D]
 
-C = (varPlane[8,node_thalweg3D]+varPlane[10,node_thalweg3D])*varPlane[6,node_thalweg3D]
-C = (varPlane[8,node_thalweg3D])*1.1006341463414635E-003
+C1 = (varPlane[8,node_thalweg3D]+varPlane[10,node_thalweg3D])*varPlane[6,node_thalweg3D]
+C2 = (varPlane[8,node_thalweg3D])*1.1006341463414635E-003
 
 # triangulation
 triang = tri.Triangulation(X_thalweg, Z_thalweg)
@@ -142,9 +146,14 @@ f_surface = interpolate.interp1d(r3d.X[node_thalweg_surface], varPlane[r3d.id_z,
 triang.set_mask([(Z_thalweg[t].mean() < f_bottom (X_thalweg[t].mean()))
                 or (Z_thalweg[t].mean() > f_surface(X_thalweg[t].mean())) for t in triang.triangles])
 # plot the figure
-plt.tricontourf(triang, C, levels=200, cmap='bwr')
+plt.tricontourf(triang, C1-C2, levels=200, cmap='coolwarm')
+plt.xlim(5000,155000)
+plt.clim(-0.0003,0.0003)
 cbar = plt.colorbar()
-cbar.ax.set_ylabel('lalala')
+plt.xlabel('Distance from estuary mouth (km)')
+plt.ylabel('Elevation (m MSL)')
+plt.title('Difference of the settling flux during slack tide')
+cbar.ax.set_ylabel(r'$kg/m^2/s$')
 #plt.triplot(triang, 'ko-')
 #plt.plot(r3d.X[node_thalweg_bottom],  varPlane[r3d.id_z,node_thalweg_bottom],  'ro')
 #plt.plot(r3d.X[node_thalweg_surface], varPlane[r3d.id_z,node_thalweg_surface], 'bo')
