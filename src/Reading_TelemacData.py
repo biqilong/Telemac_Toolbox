@@ -6,14 +6,16 @@ This module reads the output data from
 a Telemac simulation and plots subsequently
 some variables (e.g. water-level, flow velocity ...)
 
-Authors: S.J. Kaptein
+Authors: S.J. Kaptein, Q.Bi
 -------------------------------------------------
 
 Date:23/7/2019
 Rearrange the functions (Q. Bi)
 
-"""
+Date:13/8/2019
+Add function for computing tidal components using FFT (Q. Bi)
 
+"""
 
 import numpy as np
 import math
@@ -25,6 +27,7 @@ import ppmodules.selafin_io_pp as sio
 import ttide as tt
 import os
 import csv
+from scipy.fftpack import fft,fftfreq,fftshift,rfft,irfft,ifft
 
 
 class Reading_TelemacData:
@@ -36,45 +39,72 @@ class Reading_TelemacData:
 
         return
 
-    def run(self):
+    def run(self,post_input):
 
-        #todo read the settings below from an input file
+        # read post_input
+        fpi = open(post_input, "r")
+        contents = fpi.readlines()
+        fpi.close()
 
-        # Input selafin file
-        # slf_dir   = 'C:\\ubuntu\Telemac_models\\rectangular_mesh\\'
-        slf_dir   = 'D:\\QILONG_BI\\Research\\Telemac-iFlow\\Telemac_model\\rectangular_mesh\\'
-        inputfile ='r2D_rectangular_mesh.slf'
-        slf_file  = slf_dir+inputfile
-        pp_dir    = slf_dir+'postProcessedData\\'
-        fig_dir   = slf_dir+'figures\\'
+        for i in range(len(contents)):
+            if (contents[i][0] != '#' and contents[i][0] != '\n'):
+                tLines = [txt.strip() for txt in contents[i].split('=')]
+                if tLines[0] == 'WORKING DIR':
+                    working_dir = tLines[1]
+                elif tLines[0] == '2D RESULT FILE':
+                    resfile_2D = tLines[1]
+                elif tLines[0] == '3D RESULT FILE':
+                    resfile_3D = tLines[1]
+                elif tLines[0] == 'START TIMEFRAME': # beginning of the time series used in harmonic analysis, starting from 0
+                    tf_start = int(tLines[1])
+                elif tLines[0] == 'END TIMEFRAME': # final step of the time series used in harmonic analysis, starting from 0
+                    tf_end = int(tLines[1])
+                elif tLines[0] == 'TIME INTERVAL':
+                    time_interval = float(tLines[1])
+                elif tLines[0] == 'THALWEG POINTS':
+                    subtLines = tLines[1].split(':')
+                    ip_start = int(subtLines[0])
+                    ip_end = int(subtLines[1])
+
+        slf_file_2D = working_dir + resfile_2D
+        slf_file_3D = working_dir + resfile_3D
+        pp_dir      = working_dir + 'postProcessedData\\'
+        fig_dir     = working_dir + 'figures\\'
+
+        try:
+            os.mkdir(pp_dir)
+        except OSError:
+            print ("Creation of the directory %s failed" % pp_dir)
+        else:
+            print ("Successfully created the directory %s " % pp_dir)
+        try:
+            os.mkdir(fig_dir)
+        except OSError:
+            print ("Creation of the directory %s failed" % fig_dir)
+        else:
+            print ("Successfully created the directory %s " % fig_dir)
+
+        # read the result info
+        slf, varNames, id_u, id_v, id_wl, id_ustar, time, XY = self.TelemacReadHeader(slf_file_2D)
 
         # timestep for extracting 2D results at certain time step
         timestep = 2000
         # node_nr for extracting time series at certain node
-        node_nr = 2562  # starting from 0, telemac node nr -1
-
-        # the thalweg starts from 2563 to 3843 in the rectangualr mesh (this is Telemac node nr, in python it's ip_start-1 to ip_end-1)
-        ip_start = 2563
-        ip_end = 3843
-        # beginning and final step for time series used in harmonic analysis, starting from 0
-        tf_start = 740
-        tf_end = 5733
-
-        # read the result info
-        slf, varNames, id_u, id_v, id_wl, id_ustar, time, XY = self.TelemacReadHeader(slf_file)
-
+        node_nr = 2563  # telemac node nr, in python should be node_nr-1
         # extract 2D field of a variable
         grid_x, grid_y, varField, grid_Var = self.TelemacReadData2D(slf, XY, timestep, id_ustar)
         self.TelemacPlotFlowfields(fig_dir, timestep, grid_x, grid_y, grid_Var, varNames, id_ustar)
         self.TelemacPlotFlowUV(fig_dir, timestep, grid_x, grid_y, id_u, id_v, XY, varField)
 
         # extract time series of all the variables at one node
-        timeseries = self.TelemacReadDataTS(slf, node_nr)
+        timeseries = self.TelemacReadDataTS(slf, node_nr-1)
         self.PlotTelemacTimeseries(fig_dir, time, timeseries, node_nr, id_wl, id_u, id_ustar)
 
         # compute M2 and M4 using t-tide
-        M2_thalweg_WL, M4_thalweg_WL, M2_thalweg_U, M4_thalweg_U = self.CalculateM2M4(slf, XY, id_wl, id_u, ip_start, ip_end, tf_start, tf_end, pp_dir)
-        self.PlotTelemacM2M4(fig_dir, ip_start, ip_end, XY, M2_thalweg_WL, M4_thalweg_WL, M2_thalweg_U, M4_thalweg_U)
+        # M2_thalweg_WL, M4_thalweg_WL, M2_thalweg_U, M4_thalweg_U = self.CalculateM2M4(slf, XY, id_wl, id_u, ip_start, ip_end, tf_start, tf_end, pp_dir)
+        # self.PlotTelemacM2M4(fig_dir, ip_start, ip_end, XY, M2_thalweg_WL, M4_thalweg_WL, M2_thalweg_U, M4_thalweg_U)
+        M2_thalweg_WL, M4_thalweg_WL, M6_thalweg_WL, M8_thalweg_WL, M2_thalweg_U, M4_thalweg_U, M6_thalweg_U, M8_thalweg_U = self.CalculateM2M4_FFT(slf, XY, id_wl, id_u, ip_start, ip_end, tf_start, tf_end, time_interval, pp_dir)
+
 
         # data container
         d = dict()
@@ -93,10 +123,10 @@ class Reading_TelemacData:
 
         return d
 
-    def TelemacReadHeader(self, slf_file):
+    def TelemacReadHeader(self, slf_file_2D):
         """This function reads the header of Selafin file"""
         # read the file header
-        slf = sio.ppSELAFIN(slf_file)
+        slf = sio.ppSELAFIN(slf_file_2D)
         slf.readHeader()
 
         # get the index of the variables
@@ -303,6 +333,111 @@ class Reading_TelemacData:
                        header='[X,Y,WL_amp,WL_err_amp,WL_phase,WL_err_phase,U_amp,U_err_amp,U_phase,U_err_phase,xlength='+str(ip_end-ip_start+1)+']')
 
         return(M2_thalweg_WL, M4_thalweg_WL, M2_thalweg_U, M4_thalweg_U)
+
+
+    def CalculateM2M4_FFT(self, slf, XY, id_wl, id_u, ip_start, ip_end, tf_start, tf_end, time_interval, pp_dir):
+        # calculate M2 and M4 along the channel using ttide_py
+
+        M2_thalweg_WL = np.zeros([ip_end - ip_start + 1, 3])
+        M4_thalweg_WL = np.zeros([ip_end - ip_start + 1, 3])
+        M6_thalweg_WL = np.zeros([ip_end - ip_start + 1, 3])
+        M8_thalweg_WL = np.zeros([ip_end - ip_start + 1, 3])
+        M2_thalweg_U  = np.zeros([ip_end - ip_start + 1, 3])
+        M4_thalweg_U  = np.zeros([ip_end - ip_start + 1, 3])
+        M6_thalweg_U  = np.zeros([ip_end - ip_start + 1, 3])
+        M8_thalweg_U  = np.zeros([ip_end - ip_start + 1, 3])
+
+        M2outfileName = pp_dir+'M2_along_thalweg_FFT.out'
+        M4outfileName = pp_dir+'M4_along_thalweg_FFT.out'
+        M6outfileName = pp_dir+'M6_along_thalweg_FFT.out'
+        M8outfileName = pp_dir+'M8_along_thalweg_FFT.out'
+
+        if (os.path.isfile(M2outfileName)):
+            M2outputfile = open(M2outfileName, 'r')
+            M2lineNb = M2outputfile.readline().split('xlength=')[1]
+            M2lineNb = int(M2lineNb.replace(']', ''))
+            M2outputfile.close()
+        if (os.path.isfile(M4outfileName)):
+            M4outputfile = open(M4outfileName, 'r')
+            M4lineNb = M4outputfile.readline().split('xlength=')[1]
+            M4lineNb = int(M4lineNb.replace(']', ''))
+            M4outputfile.close()
+        if (os.path.isfile(M6outfileName)):
+            M6outputfile = open(M6outfileName, 'r')
+            M6lineNb = M6outputfile.readline().split('xlength=')[1]
+            M6lineNb = int(M6lineNb.replace(']', ''))
+            M2outputfile.close()
+        if (os.path.isfile(M8outfileName)):
+            M8outputfile = open(M8outfileName, 'r')
+            M8lineNb = M8outputfile.readline().split('xlength=')[1]
+            M8lineNb = int(M8lineNb.replace(']', ''))
+            M8outputfile.close()
+
+        if os.path.isfile(M2outfileName) and os.path.isfile(M4outfileName) and os.path.isfile(M6outfileName) and os.path.isfile(M8outfileName) and (M2lineNb == ip_end-ip_start+1) and (M4lineNb == ip_end-ip_start+1) and (M6lineNb == ip_end-ip_start+1) and (M8lineNb == ip_end-ip_start+1):
+            print('all outputfiles exist and have the correct number of lines')
+        else:
+            # python starts from ip_start-1 to ip_end-1
+            for iPoint in range(ip_start - 1, ip_end):
+                i = iPoint - (ip_start - 1)
+                #i = iPoint - (ip_start - 1)+1
+                print('Processing the node', str(i))
+                # read time series at the desired node
+                slf.readVariablesAtNode(iPoint)
+                timeseries = slf.getVarValuesAtNode()
+                # harmonic analysis using FFT with results every 10 min
+                # FFT for WL
+                N = len(timeseries[:,id_wl][tf_start:tf_end]) # number of smaples
+                T = time_interval # time intreval (s)
+                sp = fft(timeseries[:,id_wl][tf_start:tf_end])
+                freq = 2*np.pi*fftfreq(N,time_interval)
+                amp = 2.0/N * np.abs(sp)
+                phi = np.angle(sp)*180/np.pi # phase in degree 
+                # get the index of M2, M4, M6 and M8
+                id_m2 = (np.abs(freq - 1.4056343e-4)).argmin()
+                id_m4 = (np.abs(freq - 2*1.4056343e-4)).argmin()
+                id_m6 = (np.abs(freq - 3*1.4056343e-4)).argmin()
+                id_m8 = (np.abs(freq - 4*1.4056343e-4)).argmin()
+                # get the amp, freq and phase of each component
+                M2_thalweg_WL[i,:] = [freq[id_m2],amp[id_m2],phi[id_m2]]
+                M4_thalweg_WL[i,:] = [freq[id_m4],amp[id_m4],phi[id_m4]]
+                M6_thalweg_WL[i,:] = [freq[id_m6],amp[id_m6],phi[id_m6]]
+                M8_thalweg_WL[i,:] = [freq[id_m8],amp[id_m8],phi[id_m8]]
+                # FFT for U
+                N = len(timeseries[:,id_u][tf_start:tf_end]) # number of smaples
+                T = time_interval # time intreval (s)
+                sp = fft(timeseries[:,id_u][tf_start:tf_end])
+                freq = 2*np.pi*fftfreq(N,T)
+                amp = 2.0/N * np.abs(sp)
+                phi = np.angle(sp)*180/np.pi # phase in degree 
+                # get the index of M2, M4, M6 and M8
+                id_m2 = (np.abs(freq - 1.4056343e-4)).argmin()
+                id_m4 = (np.abs(freq - 2*1.4056343e-4)).argmin()
+                id_m6 = (np.abs(freq - 3*1.4056343e-4)).argmin()
+                id_m8 = (np.abs(freq - 4*1.4056343e-4)).argmin()
+                # get the amp, freq and phase of each component
+                M2_thalweg_U[i,:] = [freq[id_m2],amp[id_m2],phi[id_m2]]
+                M4_thalweg_U[i,:] = [freq[id_m4],amp[id_m4],phi[id_m4]]
+                M6_thalweg_U[i,:] = [freq[id_m6],amp[id_m6],phi[id_m6]]
+                M8_thalweg_U[i,:] = [freq[id_m8],amp[id_m8],phi[id_m8]]
+            # save the data to text files
+            M2_out = np.concatenate((XY[ip_start - 1:ip_end, :], M2_thalweg_WL, M2_thalweg_U), axis=1)
+            M4_out = np.concatenate((XY[ip_start - 1:ip_end, :], M4_thalweg_WL, M4_thalweg_U), axis=1)
+            M6_out = np.concatenate((XY[ip_start - 1:ip_end, :], M6_thalweg_WL, M6_thalweg_U), axis=1)
+            M8_out = np.concatenate((XY[ip_start - 1:ip_end, :], M8_thalweg_WL, M8_thalweg_U), axis=1)
+
+            if not os.path.exists(pp_dir):
+                os.mkdir(pp_dir)
+            
+            np.savetxt(M2outfileName, M2_out, delimiter=',',
+                        header='[X,Y,WL_freq,WL_amp,WL_phase,U_freq,U_amp,U_phase,xlength='+str(ip_end-ip_start+1)+']')
+            np.savetxt(M4outfileName, M4_out, delimiter=',',
+                        header='[X,Y,WL_freq,WL_amp,WL_phase,U_freq,U_amp,U_phase,xlength='+str(ip_end-ip_start+1)+']')
+            np.savetxt(M6outfileName, M6_out, delimiter=',',
+                        header='[X,Y,WL_freq,WL_amp,WL_phase,U_freq,U_amp,U_phase,xlength='+str(ip_end-ip_start+1)+']')
+            np.savetxt(M8outfileName, M8_out, delimiter=',',
+                        header='[X,Y,WL_freq,WL_amp,WL_phase,U_freq,U_amp,U_phase,xlength='+str(ip_end-ip_start+1)+']')
+
+        return(M2_thalweg_WL, M4_thalweg_WL, M6_thalweg_WL, M8_thalweg_WL, M2_thalweg_U, M4_thalweg_U, M6_thalweg_U, M8_thalweg_U)
 
 
     def PlotTelemacM2M4(self, fig_dir, ip_start, ip_end, XY, M2_thalweg_WL, M4_thalweg_WL, M2_thalweg_U, M4_thalweg_U):

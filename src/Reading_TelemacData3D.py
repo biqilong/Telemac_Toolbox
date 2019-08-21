@@ -1,9 +1,26 @@
+"""
+Reading_TelemacData3D
+
+Date:08/08/2019
+This module reads the output data from
+a Telemac-3D simulation and plots subsequently
+some variables (e.g. water-level, flow velocity ...)
+
+Authors: Q.Bi
+-------------------------------------------------
+
+Date:21/8/2019
+Add functions for interpolation and extrapolation on fixed grid (Q. Bi)
+
+"""
+
 import numpy as np
 import math
 from scipy import interpolate
 import matplotlib.pyplot as plt
 import matplotlib.tri as tri
 import ppmodules.selafin_io_pp as sio
+from scipy import interpolate
 
 class Reading_TelemacData3D:
     def __init__(self, slf_file):
@@ -68,12 +85,24 @@ class Reading_TelemacData3D:
         for t in range(start_t,end_t+1):
             self.Z.append([raw_profiles[i][t,self.id_z] for i in range((len(IPOIN3D)))])
             varProfile.append([raw_profiles[i][t,id_var] for i in range((len(IPOIN3D)))])
-            plt.plot(varProfile[n],self.Z[n])
+            # plt.plot(varProfile[n],self.Z[n])
             n = n+1
-        plt.xlabel(self.slf.vars[id_var])
-        plt.ylabel('Elevation (m)')
-        plt.show()
+        # plt.xlabel(self.slf.vars[id_var])
+        # plt.ylabel('Elevation (m)')
+        # plt.show()
         return varProfile
+
+    def interp_on_fixed_elevations(self, varProfile, Z_bottom, Z_surface, nr_layers):
+        Z_new = np.linspace(Z_bottom, Z_surface, nr_layers)
+        profile_new = []
+        for i in range(len(varProfile)):
+            Z = self.Z[i]
+            profile = varProfile[i]
+            spl = interpolate.make_interp_spline(Z,profile,bc_type='natural')            
+            profile_new.append(spl(Z_new))
+            # plt.plot(profile,Z,'o-',profile_new,Z_new,'-')
+            # plt.show()
+        return Z_new, profile_new
 
     def get_2DV_slice_thalweg(self, timestep, id_var, clevel):
         # read data at timestep
@@ -98,101 +127,84 @@ class Reading_TelemacData3D:
         #plt.triplot(triang, 'ko-')
         #plt.plot(r3d.X[node_thalweg_bottom],  varPlane[r3d.id_z,node_thalweg_bottom],  'ro')
         #plt.plot(r3d.X[node_thalweg_surface], varPlane[r3d.id_z,node_thalweg_surface], 'bo')
-        cbar = plt.colorbar()
-        cbar.ax.set_ylabel(self.slf.vunits[id_var])
         plt.show()
         return node_thalweg3D, X_thalweg, Z_thalweg, varPlane
 
-# test
+#--------------------------------------#--------------------------------------#--------------------------------------
+# test 1 - computing sediment and settling fluxes
 slf_file = 'D:\\QILONG_BI\\Research\\MCPBE_flocculation_model\\idealized_Scheldt\\r3D_idealized_Scheldt_2CPBE.slf'
-r3d = Reading_TelemacData3D(slf_file)
-
-IPOIN2D = 5550
-start_t = 355
-end_t = 429
-
-IPOIN3D, raw_profiles = r3d.get_raw_profile(IPOIN2D)
-varProfile = r3d.get_var_profile(raw_profiles, 4, IPOIN3D, start_t, end_t)
-
-#--------------------------------------
-timestep = 373
-for timestep in range(365,381):
-    node_thalweg3D, X_thalweg, Z_thalweg, varPlane = r3d.get_2DV_slice_thalweg(timestep,6,100)
-
-#--------------------------------------
-# computing settling flux
-
-t0 = 355
-t1 = 429
-
-slf_file = 'D:\\QILONG_BI\\Research\\MCPBE_flocculation_model\\idealized_Scheldt\\r3D_idealized_Scheldt_2CPBE.slf'
-r3d = Reading_TelemacData3D(slf_file)
-r3d.varNames
-# find thalweg points
-node_thalweg3D = [i for i in range(len(r3d.Y)) if r3d.Y[i]==0]
-X_thalweg = np.array([r3d.X[i] for i in range(len(r3d.X)) if r3d.Y[i]==0])
-#Z_thalweg = varPlane[r3d.id_z,node_thalweg3D]
-varPlane_total = np.zeros([r3d.slf.NBV1,r3d.slf.NPOIN])
-SettlingFlux_2CPBE = np.zeros([len(node_thalweg3D)])
-for timestep in range(t0,t1+1):
-    r3d.slf.readVariables(timestep)
-    varPlane = np.array(r3d.slf.getVarValues())
-    varPlane_total = varPlane_total+varPlane
-    # C = np.array(varPlane[6,node_thalweg3D])
-    # C = np.array((varPlane[8,node_thalweg3D]+varPlane[10,node_thalweg3D])*varPlane[6,node_thalweg3D])
-    # C = np.array(varPlane[8,node_thalweg3D]+varPlane[10,node_thalweg3D])
-    C = np.multiply((varPlane[8,node_thalweg3D]+varPlane[10,node_thalweg3D]),varPlane[1,node_thalweg3D])
-    SettlingFlux_2CPBE = SettlingFlux_2CPBE+C
-varPlane_total = varPlane_total/(t1-t0+1)
-SettlingFlux_2CPBE = SettlingFlux_2CPBE/(t1-t0+1)
-Z_thalweg = varPlane_total[r3d.id_z,node_thalweg3D]
-
-
 slf_file = 'D:\\QILONG_BI\\Research\\MCPBE_flocculation_model\\idealized_Scheldt\\r3D_idealized_Scheldt.slf'
 r3d = Reading_TelemacData3D(slf_file)
+
+IPOIN2D = 6539
+start_t = 200
+end_t = 260
+
+IPOIN3D, raw_profiles = r3d.get_raw_profile(IPOIN2D)
+varProfile = r3d.get_var_profile(raw_profiles, 10, IPOIN3D, start_t, end_t)
+
+#--------------------------------------
+timestep = 252
+for timestep in range(200,260):
+    node_thalweg3D, X_thalweg, Z_thalweg, varPlane = r3d.get_2DV_slice_thalweg(timestep,10,100)
+
+#--------------------------------------
+# settling flux
+timestep = 252
 r3d.varNames
+r3d.slf.readVariables(timestep-1)
+varPlane = np.array(r3d.slf.getVarValues())
 # find thalweg points
 node_thalweg3D = [i for i in range(len(r3d.Y)) if r3d.Y[i]==0]
 X_thalweg = np.array([r3d.X[i] for i in range(len(r3d.X)) if r3d.Y[i]==0])
-#Z_thalweg = varPlane[r3d.id_z,node_thalweg3D]
-varPlane_total = np.zeros([r3d.slf.NBV1,r3d.slf.NPOIN])
-SettlingFlux = np.zeros([len(node_thalweg3D)])
-for timestep in range(t0,t1+1):
-    r3d.slf.readVariables(timestep)
-    varPlane = np.array(r3d.slf.getVarValues())
-    varPlane_total = varPlane_total+varPlane
-    C = np.array((varPlane[8,node_thalweg3D])*0.0037)
-    # C =  np.array(varPlane[8,node_thalweg3D])
-    # C = np.multiply(varPlane[8,node_thalweg3D],varPlane[1,node_thalweg3D])
-    SettlingFlux = SettlingFlux+C
-varPlane_total = varPlane_total/(t1-t0+1)
-SettlingFlux = SettlingFlux/(t1-t0+1)
-Z_thalweg = varPlane_total[r3d.id_z,node_thalweg3D]
+Z_thalweg = varPlane[r3d.id_z,node_thalweg3D]
 
+C = (varPlane[8,node_thalweg3D]+varPlane[10,node_thalweg3D])*varPlane[6,node_thalweg3D]
+C = (varPlane[8,node_thalweg3D])*1.1006341463414635E-003
 
 # triangulation
 triang = tri.Triangulation(X_thalweg, Z_thalweg)
 # mask the outside elements
 node_thalweg_bottom =  [i for i in range(len(r3d.Y)) if (r3d.Y[i]==0 and i<=r3d.NPOIN2D)]
 node_thalweg_surface = [i for i in range(len(r3d.Y)) if (r3d.Y[i]==0 and i>r3d.NPOIN2D*(r3d.NPLAN-1))]
-f_bottom  = interpolate.interp1d(r3d.X[node_thalweg_bottom],  varPlane_total[r3d.id_z,node_thalweg_bottom])
-f_surface = interpolate.interp1d(r3d.X[node_thalweg_surface], varPlane_total[r3d.id_z,node_thalweg_surface])
+f_bottom  = interpolate.interp1d(r3d.X[node_thalweg_bottom],  varPlane[r3d.id_z,node_thalweg_bottom])
+f_surface = interpolate.interp1d(r3d.X[node_thalweg_surface], varPlane[r3d.id_z,node_thalweg_surface])
 triang.set_mask([(Z_thalweg[t].mean() < f_bottom (X_thalweg[t].mean()))
                 or (Z_thalweg[t].mean() > f_surface(X_thalweg[t].mean())) for t in triang.triangles])
 # plot the figure
-plt.tricontourf(triang, SettlingFlux_2CPBE-SettlingFlux, levels=200, cmap='coolwarm')
-plt.xlim(5000,155000)
-# plt.clim(0.0000,0.3)
-plt.clim(-0.02,0.02)
-# plt.clim(80,180)
+plt.tricontourf(triang, C, levels=200, cmap='bwr')
 cbar = plt.colorbar()
-plt.xlabel('Distance from estuary mouth (km)')
-plt.ylabel('Elevation (m MSL)')
-plt.title('Difference of settling flux (tidally averaged)')
-cbar.ax.set_ylabel(r'$kg/m^2/s$')
+cbar.ax.set_ylabel('lalala')
 #plt.triplot(triang, 'ko-')
 #plt.plot(r3d.X[node_thalweg_bottom],  varPlane[r3d.id_z,node_thalweg_bottom],  'ro')
 #plt.plot(r3d.X[node_thalweg_surface], varPlane[r3d.id_z,node_thalweg_surface], 'bo')
 plt.show()
 
-r3d.slf.close()
+#--------------------------------------#--------------------------------------#--------------------------------------
+# test 2 - computing U at fixed elevations
+slf_file = r'C:\Users\saaad264\Research\Telemac-iFlow\Telemac_model\rectangular_mesh\am2_1.0_am4_0.05_h_10.0\r3D_rectangular_mesh.slf'
+r3d = Reading_TelemacData3D(slf_file)
+
+IPOIN2D = 2952
+start_t = 745
+end_t = 5662
+
+IPOIN3D, raw_profiles = r3d.get_raw_profile(IPOIN2D)
+varProfile = r3d.get_var_profile(raw_profiles, r3d.id_u, IPOIN3D, start_t, end_t)
+
+Z_bottom = -10
+Z_surface = 0
+nr_layers = 11 # total number of layers, including bottom and surface
+
+Z_new, profile_new = r3d.interp_on_fixed_elevations(varProfile, Z_bottom, Z_surface, nr_layers)
+
+# interpolation and extrapolation
+for i in range(len(varProfile)):
+    Z = r3d.Z[i]
+    profile = varProfile[i]
+    spl = interpolate.make_interp_spline(Z,profile,bc_type='natural')
+    Z_new = np.linspace(-10, 0, 11)
+    profile_new = spl(Z_new)
+    plt.plot(profile,Z,'o-',profile_new,Z_new,'-')
+    plt.show()
+
