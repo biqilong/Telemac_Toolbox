@@ -21,6 +21,8 @@ import matplotlib.pyplot as plt
 import matplotlib.tri as tri
 import ppmodules.selafin_io_pp as sio
 from scipy import interpolate
+from scipy.fftpack import fft,fftfreq,fftshift,rfft,irfft,ifft
+import gc
 
 class Reading_TelemacData3D:
     def __init__(self, slf_file):
@@ -130,6 +132,109 @@ class Reading_TelemacData3D:
         plt.show()
         return node_thalweg3D, X_thalweg, Z_thalweg, varPlane
 
+    def cal_U_harmonic_analysis_FFT(self, node_list, start_t, end_t, Z_bottom, Z_surface, nr_layers, time_interval):
+        # start reading and processing the data
+        M2_thalweg_U  = []
+        M4_thalweg_U  = []
+        M6_thalweg_U  = []
+        M8_thalweg_U  = []
+        for iPoint in node_list:
+            i = iPoint - (node_list[0] - 1)
+            # print('Processing the node', str(i))
+            # extract time series along vertical planes
+            IPOIN3D, raw_profiles = self.get_raw_profile(iPoint)
+            varProfile = self.get_var_profile(raw_profiles, self.id_u, IPOIN3D, start_t, end_t)
+            # interpolation and extrapolation
+            Z_new, profile_new = self.interp_on_fixed_elevations(varProfile, Z_bottom, Z_surface, nr_layers)
+            # reconstruct timeseries and perform FFT
+            M2_profile_U  = np.zeros([nr_layers, 3])
+            M4_profile_U  = np.zeros([nr_layers, 3])
+            M6_profile_U  = np.zeros([nr_layers, 3])
+            M8_profile_U  = np.zeros([nr_layers, 3])
+            for iLayer in range(nr_layers):
+                print('Processing the node', str(i),'on plane',str(iLayer))
+                timeseries = np.array([profile_new[j][iLayer] for j in range(len(profile_new))])
+                # plt.plot(r3d.time[start_t:end_t+1],timeseries)
+                # plt.show()
+                # FFT for U
+                N = len(timeseries) # number of smaples
+                T = time_interval # time intreval (s)
+                sp = fft(timeseries)
+                freq = 2*np.pi*fftfreq(N,T)
+                amp = 2.0/N*np.abs(sp)
+                phi = np.angle(sp)*180/np.pi # phase in degree 
+                # get the index of M2, M4, M6 and M8
+                id_m2 = (np.abs(freq - 1.4056343e-4)).argmin()
+                id_m4 = (np.abs(freq - 2*1.4056343e-4)).argmin()
+                id_m6 = (np.abs(freq - 3*1.4056343e-4)).argmin()
+                id_m8 = (np.abs(freq - 4*1.4056343e-4)).argmin()
+                # get the amp, freq and phase of each component
+                M2_profile_U[iLayer,:] = [freq[id_m2],amp[id_m2],phi[id_m2]]
+                M4_profile_U[iLayer,:] = [freq[id_m4],amp[id_m4],phi[id_m4]]
+                M6_profile_U[iLayer,:] = [freq[id_m6],amp[id_m6],phi[id_m6]]
+                M8_profile_U[iLayer,:] = [freq[id_m8],amp[id_m8],phi[id_m8]]
+            M2_thalweg_U.append(M2_profile_U)
+            M4_thalweg_U.append(M4_profile_U)
+            M6_thalweg_U.append(M6_profile_U)
+            M8_thalweg_U.append(M8_profile_U)
+        # get the X coordinates for later plotting figures
+        X_new = np.array([self.X[i-1] for i in node_list])/1000 # convert m to km
+        # save the processed data
+        np.savez('harmonic_analysis_U', X_new=X_new, Z_new=Z_new, M2_thalweg_U=M2_thalweg_U, M4_thalweg_U=M4_thalweg_U, M6_thalweg_U=M6_thalweg_U, M8_thalweg_U=M8_thalweg_U)
+        # output of the processed results
+        return X_new, Z_new, M2_thalweg_U, M4_thalweg_U
+
+    def plot_U_harmonic_analysis(self, node_list, X_new, Z_new, M2_thalweg_U, M4_thalweg_U):
+        # for plot the figures using contourf
+        grid_x, grid_z = np.meshgrid(X_new,Z_new)
+        # get the amplitude of M2 component
+        tempM2 = np.zeros_like(grid_x)
+        for i in range(len(node_list)):
+            tempM2[:,i] = M2_thalweg_U[i][:,1]
+        # get the  amplitude of M4 component
+        tempM4 = np.zeros_like(grid_x)
+        for i in range(len(node_list)):
+            tempM4[:,i] = M4_thalweg_U[i][:,1]
+        # making figures
+        fig, axs = plt.subplots(2,1,constrained_layout=True)
+        cs0 = axs[0].contourf(grid_x, grid_z, tempM2, 100)
+        cs1 = axs[1].contourf(grid_x, grid_z, tempM4, 100)
+        axs[0].set_title('Horizontal velocity M2 Amplitude(m)')
+        axs[1].set_title('Horizontal velocity M4 Amplitude(m)')
+        axs[0].set_xlabel('Distance from downstream BC (km)')
+        axs[1].set_xlabel('Distance from downstream BC (km)')
+        axs[0].set_ylabel('Elevation (m)')
+        axs[1].set_ylabel('Elevation (m)')
+        fig.colorbar(cs0,ax=axs[0])
+        fig.colorbar(cs1,ax=axs[1])
+        fig.set_size_inches(10, 5)
+        fig.savefig('M2_M4_amp_interpolated_U_at_fixed_elevations.png', dpi=300)
+        plt.close()
+        # get the phase of M2 component
+        tempM2 = np.zeros_like(grid_x)
+        for i in range(len(node_list)):
+            tempM2[:,i] = M2_thalweg_U[i][:,2]
+        # get the phase of M4 component
+        tempM4 = np.zeros_like(grid_x)
+        for i in range(len(node_list)):
+            tempM4[:,i] = M4_thalweg_U[i][:,2]
+        # making the figures
+        fig, axs = plt.subplots(2,1,constrained_layout=True)
+        cs0 = axs[0].contourf(grid_x, grid_z, tempM2, 100)
+        cs1 = axs[1].contourf(grid_x, grid_z, tempM4, 100)
+        axs[0].set_title('Horizontal velocity M2 phase(degree)')
+        axs[1].set_title('Horizontal velocity M4 phase(degree)')
+        axs[0].set_xlabel('Distance from downstream BC (km)')
+        axs[1].set_xlabel('Distance from downstream BC (km)')
+        axs[0].set_ylabel('Elevation (m)')
+        axs[1].set_ylabel('Elevation (m)')
+        fig.colorbar(cs0,ax=axs[0])
+        fig.colorbar(cs1,ax=axs[1])
+        fig.set_size_inches(10, 5)
+        fig.savefig('M2_M4_phs_interpolated_U_at_fixed_elevations.png', dpi=300)
+        plt.close()
+        return
+
 #--------------------------------------#--------------------------------------#--------------------------------------
 # test 1 - computing sediment and settling fluxes
 slf_file = 'D:\\QILONG_BI\\Research\\MCPBE_flocculation_model\\idealized_Scheldt\\r3D_idealized_Scheldt_2CPBE.slf'
@@ -182,29 +287,24 @@ plt.show()
 
 #--------------------------------------#--------------------------------------#--------------------------------------
 # test 2 - computing U at fixed elevations
-slf_file = r'C:\Users\saaad264\Research\Telemac-iFlow\Telemac_model\rectangular_mesh\am2_1.0_am4_0.05_h_10.0\r3D_rectangular_mesh.slf'
+slf_file = r'C:\Users\saaad264\Research\19_025_Telemac-iFlow\Telemac_model\rectangular_mesh\am2_1.0_am4_0.05_h_20.0\r3D_rectangular_mesh.slf'
 r3d = Reading_TelemacData3D(slf_file)
-
-IPOIN2D = 2952
+# thalweg points in 2D
+ip_start = 2563
+ip_end = 3843
+node_list = range(ip_start, ip_end + 1)
+# beginning and end time frames 
 start_t = 745
 end_t = 5662
-
-IPOIN3D, raw_profiles = r3d.get_raw_profile(IPOIN2D)
-varProfile = r3d.get_var_profile(raw_profiles, r3d.id_u, IPOIN3D, start_t, end_t)
-
+time_interval = 600.0
+# interpolate velocity on fixed elevations
 Z_bottom = -10
 Z_surface = 0
 nr_layers = 11 # total number of layers, including bottom and surface
+# perform the computation
+X_new, Z_new, M2_thalweg_U, M4_thalweg_U = r3d.cal_U_harmonic_analysis_FFT(node_list, start_t, end_t, Z_bottom, Z_surface, nr_layers, time_interval)
+r3d.plot_U_harmonic_analysis(node_list, X_new, Z_new, M2_thalweg_U, M4_thalweg_U)
+r3d.slf.close() # close files
 
-Z_new, profile_new = r3d.interp_on_fixed_elevations(varProfile, Z_bottom, Z_surface, nr_layers)
 
-# interpolation and extrapolation
-for i in range(len(varProfile)):
-    Z = r3d.Z[i]
-    profile = varProfile[i]
-    spl = interpolate.make_interp_spline(Z,profile,bc_type='natural')
-    Z_new = np.linspace(-10, 0, 11)
-    profile_new = spl(Z_new)
-    plt.plot(profile,Z,'o-',profile_new,Z_new,'-')
-    plt.show()
 
