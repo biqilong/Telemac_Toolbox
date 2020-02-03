@@ -235,76 +235,119 @@ class Reading_TelemacData3D:
         plt.close()
         return
 
+# #--------------------------------------#--------------------------------------#--------------------------------------
+# # test 1 - computing sediment and settling fluxes
+# slf_file = 'D:\\QILONG_BI\\Research\\MCPBE_flocculation_model\\idealized_Scheldt\\r3D_idealized_Scheldt_2CPBE.slf'
+# slf_file = 'D:\\QILONG_BI\\Research\\MCPBE_flocculation_model\\idealized_Scheldt\\r3D_idealized_Scheldt.slf'
+# r3d = Reading_TelemacData3D(slf_file)
+
+# IPOIN2D = 6539
+# start_t = 200
+# end_t = 260
+
+# IPOIN3D, raw_profiles = r3d.get_raw_profile(IPOIN2D)
+# varProfile = r3d.get_var_profile(raw_profiles, 10, IPOIN3D, start_t, end_t)
+
+# #--------------------------------------
+# timestep = 252
+# for timestep in range(200,260):
+#     node_thalweg3D, X_thalweg, Z_thalweg, varPlane = r3d.get_2DV_slice_thalweg(timestep,10,100)
+
+# #--------------------------------------
+# # settling flux
+# timestep = 252
+# r3d.varNames
+# r3d.slf.readVariables(timestep-1)
+# varPlane = np.array(r3d.slf.getVarValues())
+# # find thalweg points
+# node_thalweg3D = [i for i in range(len(r3d.Y)) if r3d.Y[i]==0]
+# X_thalweg = np.array([r3d.X[i] for i in range(len(r3d.X)) if r3d.Y[i]==0])
+# Z_thalweg = varPlane[r3d.id_z,node_thalweg3D]
+
+# C = (varPlane[8,node_thalweg3D]+varPlane[10,node_thalweg3D])*varPlane[6,node_thalweg3D]
+# C = (varPlane[8,node_thalweg3D])*1.1006341463414635E-003
+
+# # triangulation
+# triang = tri.Triangulation(X_thalweg, Z_thalweg)
+# # mask the outside elements
+# node_thalweg_bottom =  [i for i in range(len(r3d.Y)) if (r3d.Y[i]==0 and i<=r3d.NPOIN2D)]
+# node_thalweg_surface = [i for i in range(len(r3d.Y)) if (r3d.Y[i]==0 and i>r3d.NPOIN2D*(r3d.NPLAN-1))]
+# f_bottom  = interpolate.interp1d(r3d.X[node_thalweg_bottom],  varPlane[r3d.id_z,node_thalweg_bottom])
+# f_surface = interpolate.interp1d(r3d.X[node_thalweg_surface], varPlane[r3d.id_z,node_thalweg_surface])
+# triang.set_mask([(Z_thalweg[t].mean() < f_bottom (X_thalweg[t].mean()))
+#                 or (Z_thalweg[t].mean() > f_surface(X_thalweg[t].mean())) for t in triang.triangles])
+# # plot the figure
+# plt.tricontourf(triang, C, levels=200, cmap='bwr')
+# cbar = plt.colorbar()
+# cbar.ax.set_ylabel('lalala')
+# #plt.triplot(triang, 'ko-')
+# #plt.plot(r3d.X[node_thalweg_bottom],  varPlane[r3d.id_z,node_thalweg_bottom],  'ro')
+# #plt.plot(r3d.X[node_thalweg_surface], varPlane[r3d.id_z,node_thalweg_surface], 'bo')
+# plt.show()
+
+# #--------------------------------------#--------------------------------------#--------------------------------------
+# # test 2 - computing U at fixed elevations
+# slf_file = r'C:\Users\saaad264\Research\19_025_Telemac-iFlow\Telemac_model\rectangular_mesh\am2_1.0_am4_0.05_h_20.0\r3D_rectangular_mesh.slf'
+# r3d = Reading_TelemacData3D(slf_file)
+# # thalweg points in 2D
+# ip_start = 2563
+# ip_end = 3843
+# node_list = range(ip_start, ip_end + 1)
+# # beginning and end time frames 
+# start_t = 745
+# end_t = 5662
+# time_interval = 600.0
+# # interpolate velocity on fixed elevations
+# Z_bottom = -10
+# Z_surface = 0
+# nr_layers = 11 # total number of layers, including bottom and surface
+# # perform the computation
+# X_new, Z_new, M2_thalweg_U, M4_thalweg_U = r3d.cal_U_harmonic_analysis_FFT(node_list, start_t, end_t, Z_bottom, Z_surface, nr_layers, time_interval)
+# r3d.plot_U_harmonic_analysis(node_list, X_new, Z_new, M2_thalweg_U, M4_thalweg_U)
+# r3d.slf.close() # close files
+
 #--------------------------------------#--------------------------------------#--------------------------------------
-# test 1 - computing sediment and settling fluxes
-slf_file = 'D:\\QILONG_BI\\Research\\MCPBE_flocculation_model\\idealized_Scheldt\\r3D_idealized_Scheldt_2CPBE.slf'
-slf_file = 'D:\\QILONG_BI\\Research\\MCPBE_flocculation_model\\idealized_Scheldt\\r3D_idealized_Scheldt.slf'
-r3d = Reading_TelemacData3D(slf_file)
+# test 3 - plot 2DV field
 
-IPOIN2D = 6539
-start_t = 200
-end_t = 260
+# work_dir = 'J:\\18_043_implementation_of_flocculation_model_in_Telemac\\Idealized_Scheldt_ETM\\'
+# run_name = 'EBC_rouse_ws=2.8mms_M=6.0e-5_Q=80m3s_init.SSC_t=0'
+# resfile = '\\r3d_mean_14075_to_14224.slf'
+# slf_file = work_dir + run_name + resfile
 
-IPOIN3D, raw_profiles = r3d.get_raw_profile(IPOIN2D)
-varProfile = r3d.get_var_profile(raw_profiles, 10, IPOIN3D, start_t, end_t)
+# r3d = Reading_TelemacData3D(slf_file)
 
-#--------------------------------------
-timestep = 252
-for timestep in range(200,260):
-    node_thalweg3D, X_thalweg, Z_thalweg, varPlane = r3d.get_2DV_slice_thalweg(timestep,10,100)
+# timestep = 1
+# id_var = 4
+# clevel = 100
 
-#--------------------------------------
-# settling flux
-timestep = 252
-r3d.varNames
-r3d.slf.readVariables(timestep-1)
-varPlane = np.array(r3d.slf.getVarValues())
-# find thalweg points
-node_thalweg3D = [i for i in range(len(r3d.Y)) if r3d.Y[i]==0]
-X_thalweg = np.array([r3d.X[i] for i in range(len(r3d.X)) if r3d.Y[i]==0])
-Z_thalweg = varPlane[r3d.id_z,node_thalweg3D]
+# # r3d.get_2DV_slice_thalweg(1,4,100)
+# r3d.slf.readVariables(timestep-1)
+# varPlane = np.array(r3d.slf.getVarValues())
+# # find thalweg points
+# node_thalweg3D = [i for i in range(len(r3d.Y)) if r3d.Y[i]==0]
+# X_thalweg = np.array([r3d.X[i] for i in range(len(r3d.X)) if r3d.Y[i]==0])
+# Z_thalweg = varPlane[r3d.id_z,node_thalweg3D]
+# C = varPlane[id_var,node_thalweg3D]
+# # triangulation
+# triang = tri.Triangulation(X_thalweg, Z_thalweg)
+# # mask the outside elements
+# node_thalweg_bottom =  [i for i in range(len(r3d.Y)) if (r3d.Y[i]==0 and i<=r3d.NPOIN2D)]
+# node_thalweg_surface = [i for i in range(len(r3d.Y)) if (r3d.Y[i]==0 and i>r3d.NPOIN2D*(r3d.NPLAN-1))]
+# f_bottom  = interpolate.interp1d(r3d.X[node_thalweg_bottom],  varPlane[r3d.id_z,node_thalweg_bottom])
+# f_surface = interpolate.interp1d(r3d.X[node_thalweg_surface], varPlane[r3d.id_z,node_thalweg_surface])
+# triang.set_mask([(Z_thalweg[t].mean() < f_bottom (X_thalweg[t].mean()))
+#                 or (Z_thalweg[t].mean() > f_surface(X_thalweg[t].mean())) for t in triang.triangles])
+# # plot the figure
+# fig, ax = plt.subplots()
+# tcf = ax.tricontourf(triang, C, vmax=0.15, vmin=0.0, levels=clevel, cmap='jet')
+# fig.colorbar(tcf)
+# ax.set_title('The tidally-averaged SSC (g/L)')
+# ax.set_xlabel('Distance from the estuary mouth (m)')
+# ax.set_ylabel('Elevation (m)')
+# fig.set_size_inches(12, 5)
+# fig.savefig('mean_SSC_'+run_name+'.png', dpi=300)
+# plt.show()
 
-C = (varPlane[8,node_thalweg3D]+varPlane[10,node_thalweg3D])*varPlane[6,node_thalweg3D]
-C = (varPlane[8,node_thalweg3D])*1.1006341463414635E-003
-
-# triangulation
-triang = tri.Triangulation(X_thalweg, Z_thalweg)
-# mask the outside elements
-node_thalweg_bottom =  [i for i in range(len(r3d.Y)) if (r3d.Y[i]==0 and i<=r3d.NPOIN2D)]
-node_thalweg_surface = [i for i in range(len(r3d.Y)) if (r3d.Y[i]==0 and i>r3d.NPOIN2D*(r3d.NPLAN-1))]
-f_bottom  = interpolate.interp1d(r3d.X[node_thalweg_bottom],  varPlane[r3d.id_z,node_thalweg_bottom])
-f_surface = interpolate.interp1d(r3d.X[node_thalweg_surface], varPlane[r3d.id_z,node_thalweg_surface])
-triang.set_mask([(Z_thalweg[t].mean() < f_bottom (X_thalweg[t].mean()))
-                or (Z_thalweg[t].mean() > f_surface(X_thalweg[t].mean())) for t in triang.triangles])
-# plot the figure
-plt.tricontourf(triang, C, levels=200, cmap='bwr')
-cbar = plt.colorbar()
-cbar.ax.set_ylabel('lalala')
-#plt.triplot(triang, 'ko-')
-#plt.plot(r3d.X[node_thalweg_bottom],  varPlane[r3d.id_z,node_thalweg_bottom],  'ro')
-#plt.plot(r3d.X[node_thalweg_surface], varPlane[r3d.id_z,node_thalweg_surface], 'bo')
-plt.show()
-
-#--------------------------------------#--------------------------------------#--------------------------------------
-# test 2 - computing U at fixed elevations
-slf_file = r'C:\Users\saaad264\Research\19_025_Telemac-iFlow\Telemac_model\rectangular_mesh\am2_1.0_am4_0.05_h_20.0\r3D_rectangular_mesh.slf'
-r3d = Reading_TelemacData3D(slf_file)
-# thalweg points in 2D
-ip_start = 2563
-ip_end = 3843
-node_list = range(ip_start, ip_end + 1)
-# beginning and end time frames 
-start_t = 745
-end_t = 5662
-time_interval = 600.0
-# interpolate velocity on fixed elevations
-Z_bottom = -10
-Z_surface = 0
-nr_layers = 11 # total number of layers, including bottom and surface
-# perform the computation
-X_new, Z_new, M2_thalweg_U, M4_thalweg_U = r3d.cal_U_harmonic_analysis_FFT(node_list, start_t, end_t, Z_bottom, Z_surface, nr_layers, time_interval)
-r3d.plot_U_harmonic_analysis(node_list, X_new, Z_new, M2_thalweg_U, M4_thalweg_U)
-r3d.slf.close() # close files
-
+# r3d.slf.close()
 
 
