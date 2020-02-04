@@ -33,8 +33,8 @@ width_data = width[id_width]
 # def funcWidth(x,c0,c1,c2,c3,c4,c5,c6,c7,c8):
 #     return np.polyval([c0,c1,c2,c3,c4,c5,c6,c7,c8],x)
 
-def funcWidth(x,c11,c12,c21,c22,c23):
-    return 1000.0*np.exp(np.divide(np.polyval([c11,c12],x),np.polyval([c21,c22],x)))
+# def funcWidth(x,c11,c12,c21,c22,c23):
+#     return 1000.0*np.exp(np.divide(np.polyval([c11,c12],x),np.polyval([c21,c22],x)))
 
 # def funcWidth(x,c0,Lc):
 #     return c0*np.exp(-x/Lc)
@@ -42,19 +42,33 @@ def funcWidth(x,c11,c12,c21,c22,c23):
 # def funcWidth(x,c0,c1,xc,xl):
 #     return c0+c1*np.tanh((x-xc)/xl)
 
-popt, pcov = curve_fit(funcWidth, dist_data[dist_data>0], width_data[dist_data>0])
+# def funcWidth(x,c0,c1,xc,xl,c2,c3,c11,c12,c21,c22,c4,c5,c6):
+#     return c0+c1*np.tanh((x-xc)/xl)+c2*(np.tanh((x-xc)/xl))*x+1000*np.exp(np.divide(np.polyval([c11,c12],x),np.polyval([c21,c22],x)))+np.polyval([c4,c5,c6],x)
+
+def funcWidth(x,c0,c1,xc,xl,c2,c3,Lc,c4,c5,c6,c7,c8,c9):
+    return c0+c1*np.tanh((x-xc)/xl)+c2*(np.tanh((x-xc)/xl))*x+c3*np.exp(-x/Lc)+np.polyval([c4,c5,c6,c7,c8,c9],x)
+
+popt_w, pcov_w = curve_fit(funcWidth, dist_data[dist_data>0], width_data[dist_data>0])
 
 # compute the RMSE
-width_fitting_RMSE = np.square(np.subtract(width_data[dist_data>0],funcWidth(dist_data[dist_data>0], *popt))).mean()
+width_fitting_RMSE = np.square(np.subtract(width_data[dist_data>0],funcWidth(dist_data[dist_data>0], *popt_w))).mean()
 
-plt.plot(dist_data[dist_data>0], width_data[dist_data>0], 'o')
-plt.plot(dist_data[dist_data>0], funcWidth(dist_data[dist_data>0], *popt), 'r-')
-plt.text(5, 300, "RMSE="+str(width_fitting_RMSE))
-plt.show()
+# plot
+plt.figure(figsize=(8,4))
+plt.plot(dist_data[dist_data>0], width_data[dist_data>0], 'ro',markersize=3)
+plt.plot(dist_data[dist_data>0], funcWidth(dist_data[dist_data>0], *popt_w), 'b-')
+plt.text(45, 1000, "RMSE="+str(width_fitting_RMSE))
+plt.title('Representative width along the Weser Estuary')
+plt.xlim([0,80])
+plt.ylim([0,1400])
+plt.xlabel('Distance from the estuary mouth (km)')
+plt.ylabel('Estuary width (m)')
+plt.grid(which='both',axis='both',color='lightgrey')
+# plt.show()
+plt.savefig('Representative width along the Weser Estuary'+'.png', dpi=300)
 
 # for bottom ########################
 id_bottom = ~np.isnan(bottom)
-# id_bottom = np.logical_and(~np.isnan(bottom),dist>0)
 dist_data  = dist[id_bottom]
 bottom_data = bottom[id_bottom]
 
@@ -66,14 +80,22 @@ def funcBottom(x,c00,c10,c20,c30,c40,c01,c11,c21,c31):
     y1 = np.polyval([c01,c11,c21,c31],x[x>=XL0])
     return np.concatenate((y1, y0), axis=None) # in case x has descending order
 
-popt, pcov = curve_fit(funcBottom, dist_data[dist_data>0], bottom_data[dist_data>0])
+popt_b, pcov_b = curve_fit(funcBottom, dist_data[dist_data>0], bottom_data[dist_data>0],method='dogbox')
 
 # compute the RMSE
-bottom_fitting_RMSE = np.square(np.subtract(bottom_data[dist_data>0],funcBottom(dist_data[dist_data>0], *popt))).mean()
+bottom_fitting_RMSE = np.square(np.subtract(bottom_data[dist_data>0],funcBottom(dist_data[dist_data>0], *popt_b))).mean()
 
-plt.plot(dist_data[dist_data>0], bottom_data[dist_data>0], 'o')
-plt.plot(dist_data[dist_data>0], funcBottom(dist_data[dist_data>0], *popt), 'r-')
-plt.text(20, -13, "RMSE="+str(bottom_fitting_RMSE))
-plt.show()
+plt.figure(figsize=(8,4))
+plt.plot(dist_data[dist_data>0], bottom_data[dist_data>0], 'ro',markersize=3)
+plt.plot(dist_data[dist_data>0], funcBottom(dist_data[dist_data>0], *popt_b), 'b-')
+plt.text(5, -5, "RMSE="+str(bottom_fitting_RMSE))
+plt.title('Representative bottom elevation along the Weser Estuary')
+plt.xlim([0,70])
+plt.ylim([-12,-2])
+plt.xlabel('Distance from the estuary mouth (km)')
+plt.ylabel('Bottom elevation (m MSL)')
+plt.grid(which='both',axis='both',color='lightgrey')
+# plt.show()
+plt.savefig('Representative bottom elevation along the Weser Estuary'+'.png', dpi=300)
 
 

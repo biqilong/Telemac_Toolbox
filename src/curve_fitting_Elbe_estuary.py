@@ -40,22 +40,30 @@ width_data = width[id_width]
 # def funcWidth(x,c0,Lc):
 #     return c0*np.exp(-x/Lc)
 
-def funcWidth(x,c0,c1,xc,xl):
-    return c0+c1*np.tanh((x-xc)/xl)
+def funcWidth(x,c0,c1,xc,xl,c2,c3,Lc,c4,c5,c6):
+    return c0+c1*(np.tanh((x-xc)/xl))+c2*(np.tanh((x-xc)/xl))*x+c3*np.exp(-x/Lc)+np.polyval([c4,c5,c6],x)
 
-popt, pcov = curve_fit(funcWidth, dist_data[dist_data>0], width_data[dist_data>0])
+popt_w, pcov_w = curve_fit(funcWidth, dist_data[dist_data>0], width_data[dist_data>0])
 
 # compute the RMSE
-width_fitting_RMSE = np.square(np.subtract(width_data[dist_data>0],funcWidth(dist_data[dist_data>0], *popt))).mean()
+width_fitting_RMSE = np.square(np.subtract(width_data[dist_data>0],funcWidth(dist_data[dist_data>0], *popt_w))).mean()
 
-plt.plot(dist_data[dist_data>0], width_data[dist_data>0], 'o')
-plt.plot(dist_data[dist_data>0], funcWidth(dist_data[dist_data>0], *popt), 'r-')
+# plot
+plt.figure(figsize=(8,4))
+plt.plot(dist_data[dist_data>0], width_data[dist_data>0], 'ro',markersize=3)
+plt.plot(dist_data[dist_data>0], funcWidth(dist_data[dist_data>0], *popt_w), 'b-')
 plt.text(50, 3200, "RMSE="+str(width_fitting_RMSE))
-plt.show()
+plt.title('Representative width along the Elbe Estuary')
+plt.xlim([0,120])
+plt.ylim([0,3500])
+plt.xlabel('Distance from the estuary mouth (km)')
+plt.ylabel('Estuary width (m)')
+plt.grid(which='both',axis='both',color='lightgrey')
+# plt.show()
+plt.savefig('Representative width along the Elbe Estuary'+'.png', dpi=300)
 
 # for bottom ########################
 id_bottom = ~np.isnan(bottom)
-# id_bottom = np.logical_and(~np.isnan(bottom),dist>0)
 dist_data  = dist[id_bottom]
 bottom_data = bottom[id_bottom]
 
@@ -71,14 +79,22 @@ def funcBottom(x,c00,c10,c20,c30,c40,c01,c11,c21,c31,c41,c51,c61,c02,c12,c22,c32
     y3 = np.polyval([c03,c13,c23],x[x>=XL2])
     return np.concatenate((y3, y2, y1, y0), axis=None) # in case x has descending order
 
-popt, pcov = curve_fit(funcBottom, dist_data[dist_data>0], bottom_data[dist_data>0])
+popt_b, pcov_b = curve_fit(funcBottom, dist_data[dist_data>0], bottom_data[dist_data>0])
 
 # compute the RMSE
-bottom_fitting_RMSE = np.square(np.subtract(bottom_data[dist_data>0],funcBottom(dist_data[dist_data>0], *popt))).mean()
+bottom_fitting_RMSE = np.square(np.subtract(bottom_data[dist_data>0],funcBottom(dist_data[dist_data>0], *popt_b))).mean()
 
-plt.plot(dist_data[dist_data>0], bottom_data[dist_data>0], 'o')
-plt.plot(dist_data[dist_data>0], funcBottom(dist_data[dist_data>0], *popt), 'r-')
-plt.text(5, -16, "RMSE="+str(bottom_fitting_RMSE))
-plt.show()
+plt.figure(figsize=(8,4))
+plt.plot(dist_data[dist_data>0], bottom_data[dist_data>0], 'ro',markersize=3)
+plt.plot(dist_data[dist_data>0], funcBottom(dist_data[dist_data>0], *popt_b), 'b-')
+plt.text(10, -5, "RMSE="+str(bottom_fitting_RMSE))
+plt.title('Representative bottom elevation along the Elbe Estuary')
+plt.xlim([0,120])
+plt.ylim([-16,-0])
+plt.xlabel('Distance from the estuary mouth (km)')
+plt.ylabel('Bottom elevation (m MSL)')
+plt.grid(which='both',axis='both',color='lightgrey')
+# plt.show()
+plt.savefig('Representative bottom elevation along the Elbe Estuary'+'.png', dpi=300)
 
 
