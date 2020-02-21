@@ -45,8 +45,14 @@ width_data = width[id_width]
 # def funcWidth(x,c0,c1,xc,xl,c2,c3,c11,c12,c21,c22,c4,c5,c6):
 #     return c0+c1*np.tanh((x-xc)/xl)+c2*(np.tanh((x-xc)/xl))*x+1000*np.exp(np.divide(np.polyval([c11,c12],x),np.polyval([c21,c22],x)))+np.polyval([c4,c5,c6],x)
 
-def funcWidth(x,c0,c1,xc,xl,c2,c3,Lc,c4,c5,c6,c7,c8,c9):
-    return c0+c1*np.tanh((x-xc)/xl)+c2*(np.tanh((x-xc)/xl))*x+c3*np.exp(-x/Lc)+np.polyval([c4,c5,c6,c7,c8,c9],x)
+# def funcWidth(x,c1,c2,xc,xl,c4,c5,c6,c7,c8,c9):
+#     return np.polyval([c1,c2],x)*np.tanh((x-xc)/xl)+np.polyval([c4,c5,c6,c7,c8,c9],x)
+
+def funcWidth(x,c01,c02,c03,c04,c11,c12,c13,c14,c15):
+    XL1 = 32.0
+    y1 = np.polyval([c01,c02,c03,c04],x[x<XL1])
+    y2 = np.polyval([c11,c12,c13,c14,c15],x[x>=XL1])
+    return np.concatenate((y2, y1), axis=None) # in case x has descending order
 
 popt_w, pcov_w = curve_fit(funcWidth, dist_data[dist_data>0], width_data[dist_data>0])
 
@@ -74,10 +80,16 @@ bottom_data = bottom[id_bottom]
 
 # define curve functions
 
-def funcBottom(x,c00,c10,c20,c30,c40,c01,c11,c21,c31):
-    XL0 = 70.0
-    y0 = np.polyval([c00,c10,c20,c30,c40],x[x<XL0])
-    y1 = np.polyval([c01,c11,c21,c31],x[x>=XL0])
+# def funcBottom(x,c00,c10,c20,c30,c40,c01,c11,c21,c31):
+#     XL0 = 70.0
+#     y0 = np.polyval([c00,c10,c20,c30,c40],x[x<XL0])
+#     y1 = np.polyval([c01,c11,c21,c31],x[x>=XL0])
+#     return np.concatenate((y1, y0), axis=None) # in case x has descending order
+
+def funcBottom(x,c00,c10,c20,c30,c01,c11,c21,c31,c41):
+    XL0 = 32.0
+    y0 = np.polyval([c00,c10,c20,c30],x[x<XL0])
+    y1 = np.polyval([c01,c11,c21,c31,c41],x[x>=XL0])
     return np.concatenate((y1, y0), axis=None) # in case x has descending order
 
 popt_b, pcov_b = curve_fit(funcBottom, dist_data[dist_data>0], bottom_data[dist_data>0],method='dogbox')

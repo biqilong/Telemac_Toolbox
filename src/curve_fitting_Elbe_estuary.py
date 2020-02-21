@@ -40,8 +40,11 @@ width_data = width[id_width]
 # def funcWidth(x,c0,Lc):
 #     return c0*np.exp(-x/Lc)
 
-def funcWidth(x,c0,c1,xc,xl,c2,c3,Lc,c4,c5,c6):
-    return c0+c1*(np.tanh((x-xc)/xl))+c2*(np.tanh((x-xc)/xl))*x+c3*np.exp(-x/Lc)+np.polyval([c4,c5,c6],x)
+# def funcWidth(x,c0,c1,xc,xl,c2,c4,c5,c6):
+#     return c0+c1*(np.tanh((x-xc)/xl))+c2*(np.tanh((x-xc)/xl))*x+np.polyval([c4,c5,c6],x)
+
+def funcWidth(x,c1,xc,xl,c2,c3,c4,c5):
+    return np.polyval([c1,c2],x)*(np.tanh((x-xc)/xl))+np.polyval([c3,c4,c5],x)
 
 popt_w, pcov_w = curve_fit(funcWidth, dist_data[dist_data>0], width_data[dist_data>0])
 

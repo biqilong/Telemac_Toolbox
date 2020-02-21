@@ -60,13 +60,19 @@ bottom_data = bottom[id_bottom]
 
 # define curve functions
 
-def funcBottom(x,c00,c10,c20,c30,c40,c50,c60,c70,c01,c11,c21,c31,c41,c51,c61,c71,c81,c02,c12,c22,c32,c42):
-    XL0 = 0.0
+# def funcBottom(x,c00,c10,c20,c30,c40,c50,c60,c70,c01,c11,c21,c31,c41,c51,c61,c71,c81,c02,c12,c22,c32,c42):
+#     XL0 = 0.0
+#     XL1 = 114.5
+#     y0 = np.polyval([c00,c10,c20,c30,c40,c50],x[x<XL0])
+#     y1 = np.polyval([c01,c11,c21,c31,c41,c51,c61,c71],x[np.logical_and(x>=XL0,x<XL1)])
+#     y2 = np.polyval([c02,c12,c22,c32],x[x>=XL1])
+#     return np.concatenate((y2, y1, y0), axis=None) # in case x has descending order
+
+def funcBottom(x,c01,c11,c21,c31,c41,c51,c61,c02,c12,c22,c32):
     XL1 = 114.5
-    y0 = np.polyval([c00,c10,c20,c30,c40,c50],x[x<XL0])
-    y1 = np.polyval([c01,c11,c21,c31,c41,c51,c61,c71],x[np.logical_and(x>=XL0,x<XL1)])
+    y1 = np.polyval([c01,c11,c21,c31,c41,c51,c61],x[x<XL1])
     y2 = np.polyval([c02,c12,c22,c32],x[x>=XL1])
-    return np.concatenate((y2, y1, y0), axis=None) # in case x has descending order
+    return np.concatenate((y2, y1), axis=None) # in case x has descending order
 
 popt_b, pcov_b = curve_fit(funcBottom, dist_data[dist_data>0], bottom_data[dist_data>0])
 

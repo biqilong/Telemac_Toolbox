@@ -65,8 +65,6 @@ def funcBottom(x,c1,c2,c3,c4,c5):
     y2 = np.polyval([c1,c2,c3,c4,c5],XL) + np.polyder(np.poly1d([c1,c2,c3,c4,c5]))(XL)*(x[x>=XL]-XL)
     return np.concatenate((y2, y1), axis=None) # in case x has descending order
 
-XL = 130.0
-
 popt_b, pcov_b = curve_fit(funcBottom, dist_data[dist_data>0], bottom_data[dist_data>0])
 
 # compute the RMSE

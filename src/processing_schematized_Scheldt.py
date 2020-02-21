@@ -13,7 +13,7 @@ from Reading_TelemacData3D import *
 # task 1 - plot 2DV field
 
 work_dir = 'J:\\18_043_implementation_of_flocculation_model_in_Telemac\\Idealized_Scheldt_ETM\\'
-run_name = 'EBC_rouse_ws=2.8mms_M=6.0e-5_Q=80m3s_init.SSC_2times_ADV_TA=5'
+run_name = 'EBC_rouse_ws=2.8mms_M=6.0e-5_Q=80m3s_init.SSC_2times_finegrid_v2'
 resfile = '\\r3d_mean_14075_to_14224.slf'
 slf_file = work_dir + run_name + resfile
 

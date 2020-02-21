@@ -33,9 +33,15 @@ width_data = width[id_width]
 # def funcWidth(x,c11,c12,c21,c22,c23):
 #     return 1000.0*np.exp(np.divide(np.polyval([c11,c12],x),np.polyval([c21,c22,c23],x)))
 
-def funcWidth(x,c0,c1,xc,xl,c2,c3,Lc,c11,c12):
+# def funcWidth(x,c0,c1,xc,xl,c2,c3,Lc,c11,c12):
+#     XL1 = 87.9
+#     y1 = c0+c1*np.tanh((x[x<XL1]-xc)/xl)+c2*np.tanh((x[x<XL1]-xc)/xl)*x[x<XL1]+c3*np.exp(-x[x<XL1]/Lc)
+#     y2 = np.polyval([c11,c12],x[x>=XL1])
+#     return np.concatenate((y2, y1), axis=None) # in case x has descending order
+
+def funcWidth(x,c0,c1,c2,xc,xl,c3,Lc,c11,c12):
     XL1 = 87.9
-    y1 = c0+c1*np.tanh((x[x<XL1]-xc)/xl)+c2*np.tanh((x[x<XL1]-xc)/xl)*x[x<XL1]+c3*np.exp(-x[x<XL1]/Lc)
+    y1 = c0+np.polyval([c1,c2],x[x<XL1])*np.tanh((x[x<XL1]-xc)/xl)+c3*np.exp(-x[x<XL1]/Lc)
     y2 = np.polyval([c11,c12],x[x>=XL1])
     return np.concatenate((y2, y1), axis=None) # in case x has descending order
 
@@ -65,11 +71,14 @@ bottom_data = bottom[id_bottom]
 
 # define curve functions
 
-def funcBottom(x,c01,c11,c21,c31,c41,c51,c61,c71,c02,c12,c22,c32):
-    XL1 = 130.0
-    y1 = np.polyval([c01,c11,c21,c31,c41,c51,c61,c71],x[x<XL1])
-    y2 = np.polyval([c02,c12,c22,c32],x[x>=XL1])
-    return np.concatenate((y2, y1), axis=None) # in case x has descending order
+# def funcBottom(x,c01,c11,c21,c31,c41,c51,c61,c71,c02,c12,c22,c32):
+#     XL1 = 130.0
+#     y1 = np.polyval([c01,c11,c21,c31,c41,c51,c61,c71],x[x<XL1])
+#     y2 = np.polyval([c02,c12,c22,c32],x[x>=XL1])
+#     return np.concatenate((y2, y1), axis=None) # in case x has descending order
+
+def funcBottom(x,c1,c2,c3,c4,c5,c6,c7,c8):
+    return np.polyval([c1,c2,c3,c4,c5,c6,c7,c8],x)
 
 popt_b, pcov_b = curve_fit(funcBottom, dist_data[dist_data>0], bottom_data[dist_data>0])
 
