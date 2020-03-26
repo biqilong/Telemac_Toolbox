@@ -13,7 +13,7 @@ from Reading_TelemacData3D import *
 # task 1 - plot 2DV field
 
 work_dir = 'J:\\18_043_implementation_of_flocculation_model_in_Telemac\\Idealized_Scheldt_ETM\\'
-run_name = 'EBC_rouse_ws=2.8mms_M=6.0e-5_Q=80m3s_init.SSC_2times_finegrid_v2'
+run_name = 'EBC_rouse_ws=2.8mms_M=6.0e-5_Q=80m3s_init.SSC_2times_measuredM2M4_upinput'
 resfile = '\\r3d_mean_14075_to_14224.slf'
 slf_file = work_dir + run_name + resfile
 
@@ -52,6 +52,13 @@ fig.savefig('mean_SSC_'+run_name+'.png', dpi=300)
 plt.show()
 
 r3d.slf.close()
+
+# with open('nut.csv', 'w', newline='') as file:
+#     writer = csv.writer(file)
+#     writer.writerows(X_thalweg.reshape((6,1516)))
+#     writer.writerows(C.reshape((6,1516)))
+
+# file.close()
 
 
 #--------------------------------------#--------------------------------------#--------------------------------------
